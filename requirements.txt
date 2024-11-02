@@ -1,3 +1,13 @@
 openai
 requests
 python-dotenv
+deepface
+tensorflow
+keras
+opencv-python
+pandas
+numpy
+fer
+scipy
+bark
+pydub

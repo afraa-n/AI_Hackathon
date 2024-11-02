@@ -1,19 +1,29 @@
 from bark import SAMPLE_RATE, generate_audio, preload_models
-from scipy.io.wavfile import write as write_wav
+import numpy as np
+from pydub import AudioSegment
+from pydub.playback import play
 
 
-# Function to generate and save audio from text
-def generate_and_save_audio(text_prompt, output_filename="bark_generation.wav"):
+# Function to generate and play audio from text
+def generate_and_play_audio(text_prompt):
     # Download and load all models
     preload_models()
 
     # Generate audio from text
     audio_array = generate_audio(text_prompt)
 
-    # Save the audio to disk
-    write_wav(output_filename, SAMPLE_RATE, audio_array)
+    # Convert the numpy array to a format compatible with pydub
+    audio_segment = AudioSegment(
+        data=audio_array.tobytes(),
+        frame_rate=SAMPLE_RATE,
+        sample_width=audio_array.dtype.itemsize,
+        channels=1,  # Assuming mono audio
+    )
 
-    print(f"Audio has been generated and saved as {output_filename}")
+    # Play the generated audio
+    play(audio_segment)
+
+    print("Audio has been generated and played.")
 
 
 # Main function to test the text-to-speech
@@ -24,5 +34,5 @@ if __name__ == "__main__":
         But I also have other interests such as playing tic tac toe.
     """
 
-    # Generate and save the audio file
-    generate_and_save_audio(text_prompt)
+    # Generate and play the audio file directly
+    generate_and_play_audio(text_prompt)
