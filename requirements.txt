@@ -1,3 +1,9 @@
 openai
 requests
 python-dotenv
+websockets
+hume==0.4.1
+numpy
+pandas
+opencv-python
+pyaudio
