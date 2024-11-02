@@ -1,62 +1,54 @@
-# prompt_engineering.py
-
 import openai
-import json
-import requests
+import os
+from dotenv import load_dotenv
 
-# Set up your OpenAI API key
-openai.api_key = "your_openai_api_key"
+# Load environment variables from .env file
+load_dotenv()
 
-def generate_music_details(context, open_ai_key):
+# Set up OpenAI API key from the .env variable
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-    openai.api_key = open_ai_key
 
-    # Define the prompt to send to the API
+def generate_prompt_for_gpt(user_input):
+    # Craft a prompt to instruct GPT-3.5 Turbo to respond appropriately
     prompt = (
-        "Analyze the following context to generate a music prompt 2-3 sentences in length that reflects the emotional experience described. "
-        "If any popular singer/band's name is mentioned in any positive context, use that as the singer name extracted (Singer_Name); if no singer is mentioned, select a popular singer (could be any gender) whose singing voice aligns with the emotions and genre suggested by the user's mood. "
-        "Aim for a diverse range of artists across different genres to reflect the mood accurately, avoiding overused selections. "
-        "Determine a suitable music genre or style based on the emotions conveyed.\n\n"
-        f"Context: {context}\n\n"
-        "Output Format:\n"
-        "Prompt: {Insert Prompt here}\n"
-        "Singer_Name: {Insert Singer_Name here} (if not mentioned, use a popular singer's name that is suitable for the song style)\n"
-        "Music_genre: {Insert Music_genre here}"
-)
+        f'User Input: "{user_input}"\n\n'
+        "Respond as an empathetic and friendly conversational partner. Your response should be engaging, supportive, "
+        "and continuous for approximately one minute, speaking as a comforting friend who listens, reassures, and "
+        "validates the user's emotions or experience. Make sure to conclude the response with: "
+        "'I have written a song for you, here it is.'"
+    )
+    return prompt
 
 
-    # Define the API endpoint
-    url = "https://api.openai.com/v1/chat/completions"
+def get_gpt_response(prompt):
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are an empathetic and friendly AI that responds thoughtfully to user inputs.",
+            },
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=500,  # Adjust token limit to control the response length for approximately one minute of speaking
+        temperature=0.7,  # Adjust temperature for creative and engaging responses
+    )
 
-    # Define the data for the POST request
-    data = {
-        "model": "gpt-3.5-turbo",
-        "messages": [
-            {"role": "user", "content": prompt}
-        ]
-    }
+    # Extract the response text
+    generated_response = response["choices"][0]["message"]["content"].strip()
 
-    # Define the headers
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {openai.api_key}"
-    }
+    return generated_response
 
-    # Send the POST request
-    response = requests.post(url, headers=headers, data=json.dumps(data))
 
-    # Check if the request was successful
-    if response.status_code == 200:
-        response_data = response.json()
-        response_content = response_data['choices'][0]['message']['content']
-        
-        # Extract the values from the response content
-        prompt_line = next(line for line in response_content.split('\n') if line.startswith('Prompt:')).replace('Prompt: ', '').strip()
-        singer_name_line = next(line for line in response_content.split('\n') if line.startswith('Singer_Name:')).replace('Singer_Name: ', '').strip()
-        music_genre_line = next(line for line in response_content.split('\n') if line.startswith('Music_genre:')).replace('Music_genre: ', '').strip()
-        
-        # Return the extracted values
-        return prompt_line, singer_name_line, music_genre_line
-    else:
-        print("Error:", response.status_code, response.text)
-        return None, None, None
+def main():
+    user_input = "Today just wasn’t my day. I woke up feeling down, missing my family, and that feeling of being so far from everyone I care about really hit hard."
+    prompt = generate_prompt_for_gpt(user_input)
+    response = get_gpt_response(prompt)
+
+    print("GPT Response:")
+    print(response)
+
+
+if __name__ == "__main__":
+    main()

@@ -27,4 +27,5 @@ def test_camera():
     print("Camera test completed")
 
 if __name__ == "__main__":
+    print("start")
     test_camera()
