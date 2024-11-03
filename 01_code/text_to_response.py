@@ -1,7 +1,12 @@
 import openai
+import os
+from dotenv import load_dotenv
 
-# Set up OpenAI API key
-openai.api_key = "YOUR_OPENAI_API_KEY"
+# Load environment variables from .env file
+load_dotenv()
+
+# Set up OpenAI API key from the .env variable
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
 def generate_prompt_for_gpt(user_input):
