@@ -4,22 +4,27 @@ from deepface import DeepFace
 import time
 from threading import Thread, Event
 import speech_recognition as sr
+from picamera2 import Picamera2  # Import Raspberry Pi camera library
 
 
 class SimpleMoodDetector:
     def __init__(self):
         print("[DEBUG] Initializing SimpleMoodDetector...")
-        # Initialize face detection with OpenCV (faster than DeepFace's default detector)
+        # Initialize face detection
         self.face_cascade = cv2.CascadeClassifier(
             cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
         )
 
-        # Initialize camera
-        self.camera = cv2.VideoCapture(0)
-        if self.camera.isOpened():
-            print("[DEBUG] Camera initialized successfully")
-        else:
-            print("[DEBUG] ERROR: Failed to initialize camera")
+        # Initialize Raspberry Pi camera
+        try:
+            self.camera = Picamera2()
+            config = self.camera.create_preview_configuration(main={"size": (640, 480)})
+            self.camera.configure(config)
+            self.camera.start()
+            print("[DEBUG] Raspberry Pi camera initialized successfully")
+        except Exception as e:
+            print(f"[DEBUG] Error initializing camera: {e}")
+            raise
 
         # Set up speech recognition
         self.recognizer = sr.Recognizer()
@@ -38,20 +43,17 @@ class SimpleMoodDetector:
         """Detect mood using DeepFace"""
         try:
             print("[DEBUG] Starting mood detection with DeepFace...")
-            # DeepFace analyze returns emotions with confidence scores
             result = DeepFace.analyze(
                 frame,
                 actions=["emotion"],
                 enforce_detection=False,
-                detector_backend="opencv",  # Using OpenCV for faster detection
+                detector_backend="opencv",
             )
 
-            # Get the emotion with highest confidence score
             emotion = result[0]["dominant_emotion"]
             print(f"[DEBUG] DeepFace detected emotion: {emotion}")
             print(f"[DEBUG] All emotions detected: {result[0]['emotion']}")
 
-            # Map to our target emotions, defaulting to neutral
             if emotion in self.target_emotions:
                 print(f"[DEBUG] Returning target emotion: {emotion}")
                 return emotion
@@ -67,59 +69,37 @@ class SimpleMoodDetector:
         print("[DEBUG] Starting camera loop")
         while not self.stop_camera.is_set():
             if self.speaking.is_set():
-                ret, frame = self.camera.read()
-                if not ret:
-                    print("[DEBUG] Failed to capture frame")
-                    continue
-                print("[DEBUG] Frame captured successfully")
-
-                # Convert to grayscale for face detection
-                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-                # Detect faces using OpenCV
-                faces = self.face_cascade.detectMultiScale(
-                    gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30)
-                )
-
-                # If face detected, process mood
-                if len(faces) > 0:
-                    print(f"[DEBUG] Detected {len(faces)} faces")
-                    # Detect mood using DeepFace
-                    self.detected_mood = self.detect_mood(frame)
-
-                    if self.detected_mood:
-                        print("[DEBUG] Mood detected, stopping camera")
-                        # Stop camera loop
-                        self.stop_camera.set()
-                        self.speaking.clear()
-                        break
-                else:
-                    print("[DEBUG] No faces detected in this frame")
-
-    def listen_for_speech(self):
-        """Listen for speech and trigger face detection"""
-        print("[DEBUG] Starting speech recognition")
-        with self.microphone as source:
-            print("[DEBUG] Adjusting for ambient noise...")
-            self.recognizer.adjust_for_ambient_noise(source)
-            print("[DEBUG] Ambient noise adjustment complete")
-
-            while not self.stop_camera.is_set():
                 try:
-                    print("Listening...")
-                    audio = self.recognizer.listen(source, timeout=5)
-                    print("[DEBUG] Speech detected!")
+                    # Capture frame from Raspberry Pi camera
+                    frame = self.camera.capture_array()
+                    print("[DEBUG] Frame captured successfully")
 
-                    # When speech detected, trigger camera
-                    self.speaking.set()
-                    print("[DEBUG] Camera triggered")
-                    time.sleep(0.5)  # Give camera time to initialize
+                    # Convert BGR to RGB (PiCamera captures in RGB)
+                    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
-                except sr.WaitTimeoutError:
-                    print("[DEBUG] Speech timeout, continuing to listen")
-                    continue
+                    # Convert to grayscale for face detection
+                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+                    # Detect faces using OpenCV
+                    faces = self.face_cascade.detectMultiScale(
+                        gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30)
+                    )
+
+                    # If face detected, process mood
+                    if len(faces) > 0:
+                        print(f"[DEBUG] Detected {len(faces)} faces")
+                        self.detected_mood = self.detect_mood(frame)
+
+                        if self.detected_mood:
+                            print("[DEBUG] Mood detected, stopping camera")
+                            self.stop_camera.set()
+                            self.speaking.clear()
+                            break
+                    else:
+                        print("[DEBUG] No faces detected in this frame")
+
                 except Exception as e:
-                    print(f"[DEBUG] Error in speech recognition: {e}")
+                    print(f"[DEBUG] Error capturing frame: {e}")
                     continue
 
     def get_mood(self):
@@ -145,7 +125,7 @@ class SimpleMoodDetector:
         finally:
             # Clean up
             print("[DEBUG] Cleaning up resources")
-            self.camera.release()
+            self.camera.stop()
             cv2.destroyAllWindows()
 
         return self.detected_mood

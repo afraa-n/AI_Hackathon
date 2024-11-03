@@ -4,22 +4,30 @@ from deepface import DeepFace
 import time
 from threading import Thread, Event
 import speech_recognition as sr
+from picamera import PiCamera
+from io import BytesIO
+from PIL import Image
 
 
 class SimpleMoodDetector:
     def __init__(self):
         print("[DEBUG] Initializing SimpleMoodDetector...")
-        # Initialize face detection with OpenCV (faster than DeepFace's default detector)
+        # Initialize face detection
         self.face_cascade = cv2.CascadeClassifier(
             cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
         )
 
-        # Initialize camera
-        self.camera = cv2.VideoCapture(0)
-        if self.camera.isOpened():
-            print("[DEBUG] Camera initialized successfully")
-        else:
-            print("[DEBUG] ERROR: Failed to initialize camera")
+        # Initialize Raspberry Pi camera
+        try:
+            self.camera = PiCamera()
+            self.camera.resolution = (640, 480)
+            self.camera.framerate = 24
+            # Warm up camera
+            time.sleep(2)
+            print("[DEBUG] Raspberry Pi camera initialized successfully")
+        except Exception as e:
+            print(f"[DEBUG] Error initializing camera: {e}")
+            raise
 
         # Set up speech recognition
         self.recognizer = sr.Recognizer()
@@ -34,24 +42,31 @@ class SimpleMoodDetector:
         self.target_emotions = ["happy", "sad", "angry", "neutral"]
         self.detected_mood = None
 
+    def capture_frame(self):
+        """Capture a frame from PiCamera and convert to OpenCV format"""
+        stream = BytesIO()
+        self.camera.capture(stream, format="jpeg")
+        stream.seek(0)
+        image = Image.open(stream)
+        # Convert PIL image to OpenCV format
+        frame = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+        return frame
+
     def detect_mood(self, frame):
         """Detect mood using DeepFace"""
         try:
             print("[DEBUG] Starting mood detection with DeepFace...")
-            # DeepFace analyze returns emotions with confidence scores
             result = DeepFace.analyze(
                 frame,
                 actions=["emotion"],
                 enforce_detection=False,
-                detector_backend="opencv",  # Using OpenCV for faster detection
+                detector_backend="opencv",
             )
 
-            # Get the emotion with highest confidence score
             emotion = result[0]["dominant_emotion"]
             print(f"[DEBUG] DeepFace detected emotion: {emotion}")
             print(f"[DEBUG] All emotions detected: {result[0]['emotion']}")
 
-            # Map to our target emotions, defaulting to neutral
             if emotion in self.target_emotions:
                 print(f"[DEBUG] Returning target emotion: {emotion}")
                 return emotion
@@ -67,34 +82,35 @@ class SimpleMoodDetector:
         print("[DEBUG] Starting camera loop")
         while not self.stop_camera.is_set():
             if self.speaking.is_set():
-                ret, frame = self.camera.read()
-                if not ret:
-                    print("[DEBUG] Failed to capture frame")
+                try:
+                    # Capture frame from Raspberry Pi camera
+                    frame = self.capture_frame()
+                    print("[DEBUG] Frame captured successfully")
+
+                    # Convert to grayscale for face detection
+                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+                    # Detect faces using OpenCV
+                    faces = self.face_cascade.detectMultiScale(
+                        gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30)
+                    )
+
+                    # If face detected, process mood
+                    if len(faces) > 0:
+                        print(f"[DEBUG] Detected {len(faces)} faces")
+                        self.detected_mood = self.detect_mood(frame)
+
+                        if self.detected_mood:
+                            print("[DEBUG] Mood detected, stopping camera")
+                            self.stop_camera.set()
+                            self.speaking.clear()
+                            break
+                    else:
+                        print("[DEBUG] No faces detected in this frame")
+
+                except Exception as e:
+                    print(f"[DEBUG] Error capturing frame: {e}")
                     continue
-                print("[DEBUG] Frame captured successfully")
-
-                # Convert to grayscale for face detection
-                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-                # Detect faces using OpenCV
-                faces = self.face_cascade.detectMultiScale(
-                    gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30)
-                )
-
-                # If face detected, process mood
-                if len(faces) > 0:
-                    print(f"[DEBUG] Detected {len(faces)} faces")
-                    # Detect mood using DeepFace
-                    self.detected_mood = self.detect_mood(frame)
-
-                    if self.detected_mood:
-                        print("[DEBUG] Mood detected, stopping camera")
-                        # Stop camera loop
-                        self.stop_camera.set()
-                        self.speaking.clear()
-                        break
-                else:
-                    print("[DEBUG] No faces detected in this frame")
 
     def listen_for_speech(self):
         """Listen for speech and trigger face detection"""
@@ -145,7 +161,7 @@ class SimpleMoodDetector:
         finally:
             # Clean up
             print("[DEBUG] Cleaning up resources")
-            self.camera.release()
+            self.camera.close()
             cv2.destroyAllWindows()
 
         return self.detected_mood
@@ -162,19 +178,8 @@ def main():
     # Pass the mood to your next model
     if detected_mood:
         print(f"[DEBUG] Final detected mood: {detected_mood}")
-        # Add your code here to pass the mood to the next model
-        pass_mood_to_next_model(detected_mood)
     else:
         print("[DEBUG] No mood was detected")
-
-
-def pass_mood_to_next_model(mood_string):
-    """Function to pass the mood to the next model"""
-    print(f"[DEBUG] Passing mood '{mood_string}' to next model")
-    # Add your code here to pass the mood to the next model
-    # Example:
-    # next_model.process_mood(mood_string)
-    pass
 
 
 if __name__ == "__main__":
