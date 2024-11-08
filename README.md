@@ -12,6 +12,8 @@ You can find our project presentation here: [Introducing Bobcat: The Singing AI 
 
 You can find our project Writeup here: [Bobcat: Your AI Companion That Sings Your Story](Bobcat_%20Your%20AI%20Companion%20That%20Sings%20Your%20Story.pdf)
 
+You can find our project Demo Video here: [Devpost: 2nd Grand Prize](https://devpost.com/software/bobcat-your-singing-ai-companion?ref_content=my-projects-tab&ref_feature=my_projects)
+
 ![bobcat logo (2)](https://github.com/user-attachments/assets/57a96817-8771-4aee-a4e5-2e4d1502c63d)
 
 ## Overview
