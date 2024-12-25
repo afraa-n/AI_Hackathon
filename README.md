@@ -24,10 +24,10 @@ Bobcat bridges the gap between practical tech and human warmth, delivering real-
 
 - **Multimodal Sentiment Analysis**: Combines **DeepFace** for facial recognition and **speech-based sentiment analysis** for a comprehensive understanding of your mood.
 - **Voice Transcription**: Translates spoken input into text using **Speech Recognition**, enabling contextual awareness.
-- **Empathetic AI Interaction**: Chat responses powered by **OpenAI GPT-3.5 Turbo** mimic natural, human-like conversation.
+- **Empathetic AI Interaction**: Chat responses powered by **OpenAI GPT-3.5 Turbo** and **Text-to-Speech (TTS-1-HD)** mimic natural, human-like conversation.
 - **Dynamic Song Generation**: Utilizes **UDIO** to compose and sing personalized songs that align with your emotional state, creating a unique, mood-reflective experience.
 - **Portable & Engaging Design**: Encased in a 3D-printed body with a friendly aesthetic that invites interaction.
-
+  
 ## Technical Architecture
 
 ### Hardware
@@ -47,8 +47,8 @@ Bobcat bridges the gap between practical tech and human warmth, delivering real-
 ### Project Pipeline
 Bobcat’s real-time operations rely on seamless integration:
 1. **Facial and Voice Input** ➡️ Mood Detection (DeepFace + Sentiment Analysis)
-2. **Transcription & Interpretation** ➡️ Chat Response (GPT-3.5 Turbo)
-3. **Song Composition** ➡️ Performance Output (UDIO + TTS)
+2. **Transcription & Interpretation** ➡️ Chat Response (Speech Recognition + GPT-3.5 Turbo + TTS)
+3. **Song Composition** ➡️ Performance Output (UDIO)
 
 ![CI_CD pipeline llm_RAG (1)](https://github.com/user-attachments/assets/28ea490d-214c-4824-9dc9-b766fe02bc87)
 
